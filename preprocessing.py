@@ -25,7 +25,6 @@ def tf_diff_axis(arr):
 
 def zero_crossing(arr, rank=1):
     """Calculates the zero crossing rate"""
-    
     if rank == 1:
         nzc = tf.cast(tf.count_nonzero(tf_diff_axis(tf.sign(arr))), tf.float32)
     else:
