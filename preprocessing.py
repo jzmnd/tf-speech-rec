@@ -7,6 +7,7 @@ and batches of files.
 
 import tensorflow as tf
 from tensorflow.contrib import signal
+import config as cfg
 
 
 def windower(arr, window=128, hop_length=32, rank=1):
@@ -42,16 +43,27 @@ def rms_energy(arr, rank=1, maxamps=1.0):
         return tf.sqrt(tf.reduce_mean(tf.square(arr / maxamps), axis=rank - 1), name='rmse')
 
 
-def signalProcessBatch(signals, add_noise=False, window=512, maxamps=1.0, sr=16000,
-                       num_mel_bins=64, num_mfccs=19):
+def signalProcessBatch(signals, add_noise=True, noise_factor=0.1, window=512,
+                       maxamps=1.0, sr=16000, num_mel_bins=64, num_mfccs=13):
     """Function to perform all the DSP preprocessing and feature extraction.
-       Returns the MFCCs Mel spectrum, ZCR and RMSE.
+       Returns the MFCCs, Log Mel spectrum, ZCR and RMSE.
        Works on a batch of num_files files.
        - Input signals : tensor of shape [num_files, samples]
        - Output        : tuple ([num_files, num_windows, num_mfccs],
                                 [num_files, num_windows, num_mel_bins],
                                 [num_files, num_windows],
                                 [num_files, num_windows])"""
+
+    if add_noise:
+        try:
+            num_files = signals.shape[0].value
+        except AttributeError:
+            num_files = signals.shape[0]
+
+        idx = tf.random_uniform((num_files,), 0, cfg.NOISE_MATRIX.shape[0], dtype=tf.int32)
+        noise = tf.cast(tf.gather(cfg.NOISE_MATRIX, idx), tf.float32)
+        
+        signals = signals + noise_factor * maxamps * noise
 
     hop_length = window / 4
     signals32 = tf.cast(signals, tf.float32)
@@ -73,13 +85,13 @@ def signalProcessBatch(signals, add_noise=False, window=512, maxamps=1.0, sr=160
                                                         lower_edge_hertz,
                                                         upper_edge_hertz)
 
-    mel_spectrograms = tf.tensordot(magnitude_spectrograms, mel_weight_mat, 1, name='mel_spectrograms')
+    mel_spectrograms = tf.tensordot(magnitude_spectrograms, mel_weight_mat, 1)
     mel_spectrograms.set_shape(magnitude_spectrograms.shape[:-1].concatenate(mel_weight_mat.shape[-1:]))
 
-    log_offset = 1e-6
-    log_mel_spectrograms = tf.log(mel_spectrograms + log_offset)
+    log_offset = 1e-8
+    log_mel_spectrograms = tf.log(mel_spectrograms + log_offset, name='log_mel_spectrograms')
 
     mfccs = signal.mfccs_from_log_mel_spectrograms(log_mel_spectrograms)[..., :num_mfccs]
     mfccs = tf.identity(mfccs, name='mfccs')
 
-    return mfccs, mel_spectrograms, zcr, rmse
+    return mfccs, log_mel_spectrograms, zcr, rmse
