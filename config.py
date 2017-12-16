@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import os
 import numpy as np
@@ -6,7 +7,7 @@ import numpy as np
 BITRATE = 16                      # Bit rate
 SAMRATE = 16000                   # Sample rate (Hz)
 SAMTIME = 1000.0 / SAMRATE        # Sample time (ms)
-MAXAMPS = float(2**BITRATE / 2)   # Max samples amplitute
+MAXAMPS = float(2**BITRATE / 2)   # Max samples amplitude
 
 DATA_DIR = './data'               # Data location
 OUT_DIR = './models'              # Model output location

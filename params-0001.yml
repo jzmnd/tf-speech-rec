@@ -1,0 +1,22 @@
+# Model parameters file
+model: 'convSpeechModelA'
+shapes:
+    melspec_shape: [122, 64]
+    mfcc_shape: [122, 13]
+    sf_size: 122
+windows:
+    window: 512
+    num_mel_bins: 64
+    num_mfccs: 20
+training:
+    batch_size: 128
+    silence_size: 4
+    num_iterations: 5000
+    min_loss: 0.1
+    display_step: 10
+    checkpoint_step: 500
+    learning_rate: 5e-4
+    dropout_prob_value: 0.50
+    noise_factor_value: 0.1
+    noise_frac_value: 0.25
+    w: 0.0568356
