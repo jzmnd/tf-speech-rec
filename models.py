@@ -31,10 +31,7 @@ def max_pool_2d(x, k=2):
 
 
 def dropout(x, d, is_training):
-    if is_training is not None:
-        return tf.nn.dropout(x, d)
-    else:
-        return x
+    return tf.cond(is_training, lambda: tf.nn.dropout(x, d), lambda: x)
 
 
 # Models
