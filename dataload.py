@@ -9,6 +9,7 @@ import re
 import config as cfg
 import pandas as pd
 import numpy as np
+import yaml
 from scipy.io import wavfile
 
 FILENAME_PATTERN = re.compile(r"([^_]+)_nohash_([^\.]+)\.wav")
@@ -57,6 +58,13 @@ def load_data(data_dir):
 
     return pd.DataFrame(file_list, columns=['filepath', 'label', 'uid', 'uversion',
                                             'setlabel', 'reqlabel', 'reqlabelflag'])
+
+
+def load_config(filename, path="."):
+    """Loads yaml file and returns model parameters as python dictionary"""
+    with open(os.path.join(path, filename), 'r') as f:
+        modeldict = yaml.load(f)
+    return modeldict['model'], modeldict['params']
 
 
 def load_batch(df, data_dir, batch_size=100, silence_size=5, label='train',

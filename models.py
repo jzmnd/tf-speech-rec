@@ -34,6 +34,16 @@ def dropout(x, d, is_training):
     return tf.cond(is_training, lambda: tf.nn.dropout(x, d), lambda: x)
 
 
+# Function to select the required model
+def buildModel(modelname):
+    if modelname == 'convSpeechModelA':
+        return convSpeechModelA
+    elif modelname == 'convSpeechModelB':
+        return convSpeechModelB
+    else:
+        return convSpeechModelA
+
+
 # Models
 def convSpeechModelA(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None, is_training=False):
     """Low latency conv model using only the Mel Spectrogram"""
