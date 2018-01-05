@@ -116,3 +116,23 @@ def load_batch(df, data_dir, batch_size=100, silence_size=5, label='train',
     y_true_onehot = y_true_onehot[idx]
 
     return X, y_true_onehot
+
+
+def load_test_batch(data_dir, idx=0, batch_size=100, samples=16000):
+    """Loads test files by batch and returns the audio data as an array.
+       Also returns list of file names."""
+
+    # Create list of files starting at idx and of size batch_size
+    X_list = os.listdir(os.path.join(data_dir, 'test', 'audio'))[idx:idx + batch_size]
+
+    # Empty array of size (batch_size x samples)
+    X = np.zeros([batch_size, samples])
+
+    # Load each wave file and add it to the array
+    for i, f in enumerate(X_list):
+        sr, wave = wavfile.read(os.path.join(data_dir, 'test', 'audio', f))
+        # Reshape all files to be same length (i.e. samples)
+        wave.resize(samples)
+        X[i] += wave
+
+    return X, X_list

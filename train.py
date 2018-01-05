@@ -24,8 +24,8 @@ def main(_):
     modelname, param = load_config(paramfilename)
     n_classes = cfg.N_CLASSES
 
-    melspec_size = param['melspec_shape'][0] * param['melspec_shape'][1]
-    mfcc_size = param['mfcc_shape'][0] * param['mfcc_shape'][1]
+    #melspec_size = param['melspec_shape'][0] * param['melspec_shape'][1]
+    #mfcc_size = param['mfcc_shape'][0] * param['mfcc_shape'][1]
 
     with tf.Session() as sess:
         tf.logging.set_verbosity(tf.logging.INFO)
