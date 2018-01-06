@@ -271,50 +271,56 @@ def convSpeechModelC(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None
     # Model definition and calculations
     # ======================================================
 
-    # Calculate deltaZCR and deltaRMSE
-    x_zcr_delta = tf_diff_axis(x_zcr_in)
-    x_rmse_delta = tf_diff_axis(x_rmse_in)
+    # Calculate deltaZCR and deltaRMSE (pad 0 at end)
+    paddings = tf.constant([[0, 0], [0, 1]])
+    x_zcr_delta = tf.pad(tf_diff_axis(x_zcr_in), paddings, 'CONSTANT')
+    x_rmse_delta = tf.pad(tf_diff_axis(x_rmse_in), paddings, 'CONSTANT')
 
+    # Reshape to [audio file number, time size, 1]
+    x_zcr_in_rs = tf.reshape(x_zcr_in, [-1, t_size, 1])
+    x_zcr_delta_rs = tf.reshape(x_zcr_delta, [-1, t_size, 1])
+    x_rmse_in_rs = tf.reshape(x_rmse_in, [-1, t_size, 1])
+    x_rmse_delta_rs = tf.reshape(x_rmse_delta, [-1, t_size, 1])
 
-    # Combine MFCC with ZCR, RMSE, deltaZCR and deltaRMSE
+    # Stack together ZCR and RMSE features using tf.concat
+    zr_stack = tf.concat([x_zcr_in_rs, x_zcr_delta_rs, x_rmse_in_rs, x_rmse_delta_rs], 2)
 
-    x_mfcc_in, x_zcr_in, x_rmse_in, x_zcr_delta, x_rmse_delta
-
-
+    # Stack with the mfccs using tf.concat to make fingerprint
+    x_fingerprint = tf.concat([zr_stack, x_mfcc_in], 2)
 
     # Normalize (L2) along the time axis
-    x_mfcc_in_norm = tf.nn.l2_normalize(x_mfcc_in, 1, epsilon=1e-8)
+    x_fingerprint_norm = tf.nn.l2_normalize(x_fingerprint, 1, epsilon=1e-8)
 
     # Reshape input to [audio file number, time size, freq size, channel]
-    x_mfcc_rs = tf.reshape(x_mfcc_in_norm, [-1, t_size, f_size, 1])
+    x_fingerprint_rs = tf.reshape(x_fingerprint_norm, [-1, t_size, f_size, 1])
 
     # Layer 1: first Conv layer, BiasAdd and ReLU
-    x_mfcc_1 = tf.nn.relu(conv2d(x_mfcc_rs, weights['wconv1'],
-                                 sx=filter_stride_t,
-                                 sy=filter_stride_f) + biases['bconv1'])
+    x_fingerprint_1 = tf.nn.relu(conv2d(x_fingerprint_rs, weights['wconv1'],
+                                        sx=filter_stride_t,
+                                        sy=filter_stride_f) + biases['bconv1'])
 
     # Dropout 1:
-    x_mfcc_dropout_1 = dropout(x_mfcc_1, dropout_prob, is_training)
+    x_fingerprint_dropout_1 = dropout(x_fingerprint_1, dropout_prob, is_training)
 
     # Flatten layers
-    x_mfcc_1_rs = tf.reshape(x_mfcc_dropout_1, [-1, fc_element_count])
+    x_fingerprint_1_rs = tf.reshape(x_fingerprint_dropout_1, [-1, fc_element_count])
 
     # Layer 2: first FC layer
-    x_mfcc_2 = tf.matmul(x_mfcc_1_rs, weights['wfc1']) + biases['bfc1']
+    x_fingerprint_2 = tf.matmul(x_fingerprint_1_rs, weights['wfc1']) + biases['bfc1']
 
     # Dropout 2:
-    x_mfcc_dropout_2 = dropout(x_mfcc_2, dropout_prob, is_training)
+    x_fingerprint_dropout_2 = dropout(x_fingerprint_2, dropout_prob, is_training)
 
     # Layer 3: second FC layer
-    x_mfcc_3 = tf.matmul(x_mfcc_dropout_2, weights['wfc2']) + biases['bfc2']
+    x_fingerprint_3 = tf.matmul(x_fingerprint_dropout_2, weights['wfc2']) + biases['bfc2']
 
     # Dropout 3:
-    x_mfcc_dropout_3 = dropout(x_mfcc_3, dropout_prob, is_training)
+    x_fingerprint_dropout_3 = dropout(x_fingerprint_3, dropout_prob, is_training)
 
     # Layer 4: third FC layer
-    x_mfcc_output = tf.matmul(x_mfcc_dropout_3, weights['wfc3']) + biases['bfc3']
+    x_fingerprint_output = tf.matmul(x_fingerprint_dropout_3, weights['wfc3']) + biases['bfc3']
 
-    return x_mfcc_output
+    return x_fingerprint_output
 
 
 def convSpeechModelD(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None, is_training=False):
