@@ -107,7 +107,7 @@ def main(_):
                                                silence_size=param['silence_size'],
                                                label='train',
                                                random=True, seed=None,
-                                               w=param['unknown_weight'],
+                                               w=(1 + param['unknown_weight_scaler'] * i) * param['unknown_weight'],
                                                samples=cfg.SAMRATE)
 
             # Preprocess the training batch

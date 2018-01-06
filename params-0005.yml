@@ -1,5 +1,5 @@
 # Model parameters file
-model: 'convSpeechModelD'
+model: 'convSpeechModelC'
 params:
     melspec_shape: [122, 64]
     mfcc_shape: [122, 20]
