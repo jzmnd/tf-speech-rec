@@ -18,4 +18,4 @@ params:
     noise_factor_value: 0.1
     noise_frac_value: 0.25
     unknown_weight: 0.150
-    unknown_weight_scaler: 1.0e-03
+    unknown_weight_scaler: 0.0
