@@ -12,8 +12,8 @@ from datetime import datetime
 import config as cfg
 from dataload import load_test_batch
 
-MODELDIR = "20180105-123923"
-MODELNAME = "convSpeechModelD-params-0002.ckpt-10000"
+MODELDIR = "20180106-170432"
+MODELNAME = "convSpeechModelC-params-0006.ckpt-10000"
 
 
 def export_csv(clipnames, predictions, outfile):
