@@ -5,15 +5,13 @@ Script to run prediction on test files and output submission .csv
 """
 
 import os
+import sys
 import tensorflow as tf
 
 from datetime import datetime
 
 import config as cfg
 from dataload import load_test_batch
-
-MODELDIR = "20180106-170432"
-MODELNAME = "convSpeechModelC-params-0006.ckpt-10000"
 
 
 def export_csv(clipnames, predictions, outfile):
@@ -27,8 +25,11 @@ def export_csv(clipnames, predictions, outfile):
 
 def main(_):
 
-    modelpath = os.path.join(cfg.OUT_DIR, MODELDIR)
-    modelfull = os.path.join(modelpath, 'summaries', MODELNAME)
+    modeldir = sys.argv[1]
+    modelname = sys.argv[2]
+
+    modelpath = os.path.join(cfg.OUT_DIR, modeldir)
+    modelfull = os.path.join(modelpath, 'summaries', modelname)
 
     with tf.Session() as sess:
         tf.logging.set_verbosity(tf.logging.INFO)
@@ -49,7 +50,7 @@ def main(_):
         is_training = graph.get_tensor_by_name('is_training:0')
 
         msg = " Model restored: {}"
-        tf.logging.info(msg.format(MODELNAME))
+        tf.logging.info(msg.format(modelname))
 
         # Test batch data
         num_tests = 158538
