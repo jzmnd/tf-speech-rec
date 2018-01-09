@@ -101,13 +101,19 @@ def main(_):
         tf.logging.info(" Begin iterations...")
         for i in xrange(param['num_iterations']):
 
+            # Unknown training weight adjustment for first 5000 cycles
+            if i < 5000:
+                w = (1 + param['unknown_weight_scaler'] * i) * param['unknown_weight']
+            else:
+                w = param['unknown_weight']
+
             # Get the training batch
             X_train, y_true_batch = load_batch(df, cfg.DATA_DIR,
                                                batch_size=param['batch_size'],
                                                silence_size=param['silence_size'],
                                                label='train',
                                                random=True, seed=None,
-                                               w=(1 + param['unknown_weight_scaler'] * i) * param['unknown_weight'],
+                                               w=w,
                                                samples=cfg.SAMRATE)
 
             # Preprocess the training batch
