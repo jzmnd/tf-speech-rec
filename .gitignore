@@ -36,6 +36,7 @@ wheels/
 data/
 docs/
 models/
+params*
 
 # Config
 config

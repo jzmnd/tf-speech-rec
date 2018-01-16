@@ -22,12 +22,12 @@ def bias_variable(shape, name):
 
 
 # Conv2d, max pooling, and dropout wrapper functions for simplicity (No padding)
-def conv2d(x, W, sx=1, sy=1):
-    return tf.nn.conv2d(x, W, strides=[1, sx, sy, 1], padding='SAME')
+def conv2d(x, W, sx=1, sy=1, padding='VALID'):
+    return tf.nn.conv2d(x, W, strides=[1, sx, sy, 1], padding=padding)
 
 
-def max_pool_2d(x, k=2):
-    return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
+def max_pool_2d(x, kx=2, ky=2, padding='VALID'):
+    return tf.nn.max_pool(x, ksize=[1, kx, ky, 1], strides=[1, kx, ky, 1], padding=padding)
 
 
 def dropout(x, d, is_training):
@@ -425,11 +425,11 @@ def convSpeechModelE(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None
     filter_size_f_1 = 4
     filter_count_1 = 32
     filter_stride_t_1 = 1
-    filter_stride_f_1 = 1
+    filter_stride_f_1 = 4
 
     # Parameters for Conv layer 2 filter
     filter_size_t_2 = t_size / 2
-    filter_size_f_2 = 2
+    filter_size_f_2 = 4
     filter_count_2 = 64
     filter_stride_t_2 = 1
     filter_stride_f_2 = 1
@@ -439,7 +439,7 @@ def convSpeechModelE(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None
     fc_output_channels_2 = cfg.N_CLASSES
 
     # Number of elements in the first FC layer
-    fc_element_count = filter_size_t_2 * 12 * filter_count_2
+    fc_element_count = filter_size_t_2 * 6 * filter_count_2
 
     # ======================================================
     # Setup dictionaries containing weights and biases
@@ -488,24 +488,29 @@ def convSpeechModelE(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None
     # Layer 1: first Conv layer, BiasAdd and ReLU
     x_fingerprint_1 = tf.nn.relu(conv2d(x_fingerprint_rs, weights['wconv1'],
                                         sx=filter_stride_t_1,
-                                        sy=filter_stride_f_1) + biases['bconv1'])
+                                        sy=filter_stride_f_1,
+                                        padding='SAME') + biases['bconv1'])
 
     # Dropout 1:
     x_fingerprint_dropout_1 = dropout(x_fingerprint_1, dropout_prob, is_training)
 
     # Max pool 1:
-    x_fingerprint_mp_1 = max_pool_2d(x_fingerprint_dropout_1)
+    x_fingerprint_mp_1 = max_pool_2d(x_fingerprint_dropout_1,
+                                     kx=2,
+                                     ky=1,
+                                     padding='SAME')
 
     # Layer 2: second Conv layer, BiasAdd and ReLU
     x_fingerprint_2 = tf.nn.relu(conv2d(x_fingerprint_mp_1, weights['wconv2'],
                                         sx=filter_stride_t_2,
-                                        sy=filter_stride_f_2) + biases['bconv2'])
+                                        sy=filter_stride_f_2,
+                                        padding='SAME') + biases['bconv2'])
 
 
     # Dropout 2:
     x_fingerprint_dropout_2 = dropout(x_fingerprint_2, dropout_prob, is_training)
 
-    # tf.logging.info(x_fingerprint_dropout_2.shape)
+    tf.logging.info(x_fingerprint_dropout_2.shape)
 
     # Flatten layers
     x_fingerprint_2_rs = tf.reshape(x_fingerprint_dropout_2, [-1, fc_element_count])
