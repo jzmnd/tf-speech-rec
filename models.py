@@ -34,6 +34,7 @@ def dropout(x, d, is_training):
     return tf.cond(is_training, lambda: tf.nn.dropout(x, d), lambda: x)
 
 
+# Numpy functions in tensorflow
 def tf_diff_axis(arr):
     """Equivalent of np.diff on final axis"""
     return arr[..., 1:] - arr[..., :-1]
@@ -509,8 +510,6 @@ def convSpeechModelE(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None
 
     # Dropout 2:
     x_fingerprint_dropout_2 = dropout(x_fingerprint_2, dropout_prob, is_training)
-
-    tf.logging.info(x_fingerprint_dropout_2.shape)
 
     # Flatten layers
     x_fingerprint_2_rs = tf.reshape(x_fingerprint_dropout_2, [-1, fc_element_count])

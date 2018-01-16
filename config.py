@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-import numpy as np
+from dataload import loadtxt_gcp
 
 BITRATE = 16                      # Bit rate
 SAMRATE = 16000                   # Sample rate (Hz)
@@ -12,10 +12,9 @@ MAXAMPS = float(2**BITRATE / 2)   # Max samples amplitude
 DATA_DIR = './data'               # Data location
 OUT_DIR = './models'              # Model output location
 
-NOISE_DIR = './data/train/audio/_background_noise_'      # Noise files location
-NOISE_CLIP_DIR = './data/noise_clips'                    # Noise clips location
-NOISE_MATRIX = np.loadtxt(os.path.join(NOISE_CLIP_DIR, 'noise_clips.csv'),
-                          delimiter=',')                 # Load noise matrix
+NOISE_DIR = os.path.join(DATA_DIR, 'train/audio/_background_noise_')                    # Noise files location
+NOISE_CLIP_DIR = os.path.join(DATA_DIR, 'noise_clips')                                  # Noise clips location
+NOISE_MATRIX = loadtxt_gcp(os.path.join(NOISE_CLIP_DIR, 'noise_clips.csv'), out='arr')  # Load noise matrix
 
 LABELS_REQUIRED = ['yes', 'no', 'up', 'down', 'left',
                    'right', 'on', 'off', 'stop', 'go',

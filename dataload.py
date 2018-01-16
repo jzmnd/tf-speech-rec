@@ -9,10 +9,43 @@ import re
 import config as cfg
 import pandas as pd
 import numpy as np
+import tensorflow as tf
 import yaml
 from scipy.io import wavfile
 
 FILENAME_PATTERN = re.compile(r"([^_]+)_nohash_([^\.]+)\.wav")
+
+
+def loadtxt_gcp(fname, out='arr'):
+    """Equivalent of np.loadtxt, python open, yaml.load etc.
+       Uses tf.gfile for compatability with GCP
+       Input: out: can be 'arr', 'list', or 'yaml' depending on required format"""
+    with tf.gfile.GFile(fname, 'r') as f:
+        lines = f.readlines()
+    if out == 'arr':
+        a = np.array([np.fromstring(l, sep=',') for l in lines])
+    elif out == 'list':
+        a = [l.strip() for l in lines]
+    elif out == 'yaml':
+        lines_str = "\n".join(lines)
+        a = yaml.load(lines_str)
+    else:
+        a = lines
+    return a
+
+
+def load_waves(file_list, path, shape, samples=16000):
+    """GCP version of loading wav files from list"""
+    X = np.zeros(shape)
+    # Load each wave file and add it to the array
+    for i, fname in enumerate(file_list):
+        with tf.gfile.GFile(os.path.join(path, fname), 'rb') as f:
+            sr, wave = wavfile.read(f)
+        # Reshape all files to be same length (i.e. samples)
+        wave.resize(samples)
+        # Add to array
+        X[i] += wave
+    return X
 
 
 def load_data(data_dir):
@@ -60,10 +93,9 @@ def load_data(data_dir):
                                             'setlabel', 'reqlabel', 'reqlabelflag'])
 
 
-def load_config(filename, path="."):
+def load_config(filename, path='.'):
     """Loads yaml file and returns model parameters as python dictionary"""
-    with open(os.path.join(path, filename), 'r') as f:
-        modeldict = yaml.load(f)
+    modeldict = loadtxt_gcp(os.path.join(path, filename), out='yaml')
     return modeldict['model'], modeldict['params']
 
 
@@ -100,15 +132,9 @@ def load_batch(df, data_dir, batch_size=100, silence_size=5, label='train',
     # 1-hot encode y_true labels
     y_true_onehot = np.eye(len(cfg.LABEL2NUM))[y_true]
 
-    # Empty array of size (batch_size x samples)
-    X = np.zeros([batch_size, samples])
-
-    # Load each wave file and add it to the array
-    for i, f in enumerate(X_list):
-        sr, wave = wavfile.read(os.path.join(data_dir, 'train', 'audio', f))
-        # Reshape all files to be same length (i.e. samples)
-        wave.resize(samples)
-        X[i] += wave
+    # Load wav files
+    path = os.path.join(data_dir, 'train', 'audio')
+    X = load_waves(X_list, path, [batch_size, samples], samples=samples)
 
     # Shuffle
     idx = np.random.permutation(batch_size)
@@ -122,17 +148,12 @@ def load_test_batch(data_dir, idx=0, batch_size=100, samples=16000):
     """Loads test files by batch and returns the audio data as an array.
        Also returns list of file names."""
 
+    path = os.path.join(data_dir, 'test', 'audio')
+
     # Create list of files starting at idx and of size batch_size
-    X_list = os.listdir(os.path.join(data_dir, 'test', 'audio'))[idx:idx + batch_size]
+    X_list = tf.gfile.ListDirectory(path)[idx:idx + batch_size]
 
-    # Empty array of size (batch_size x samples)
-    X = np.zeros([batch_size, samples])
-
-    # Load each wave file and add it to the array
-    for i, f in enumerate(X_list):
-        sr, wave = wavfile.read(os.path.join(data_dir, 'test', 'audio', f))
-        # Reshape all files to be same length (i.e. samples)
-        wave.resize(samples)
-        X[i] += wave
+    # Load wav files
+    X = load_waves(X_list, path, [batch_size, samples], samples=samples)
 
     return X, X_list
