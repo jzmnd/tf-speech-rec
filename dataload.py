@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Functions for creating audio file dataframe and loading files and batches as tensors.
+Functions for creating audio file dataframe and loading files and batches as
+tensors.
 """
 
 import os
@@ -19,7 +20,8 @@ FILENAME_PATTERN = re.compile(r"([^_]+)_nohash_([^\.]+)\.wav")
 def loadtxt_gcp(fname, out='arr'):
     """Equivalent of np.loadtxt, python open, yaml.load etc.
        Uses tf.gfile for compatability with GCP
-       Input: out: can be 'arr', 'list', or 'yaml' depending on required format"""
+       Input: out: can be 'arr', 'list', or 'yaml' depending
+              on required format"""
     with tf.gfile.GFile(fname, 'r') as f:
         lines = f.readlines()
     if out == 'arr':
@@ -89,8 +91,10 @@ def load_data(data_dir):
                 file_list.append([ffull, d, r.group(1), int(r.group(2)),
                                   setlabel, reqlabel, reqlabel_flag])
 
-    return pd.DataFrame(file_list, columns=['filepath', 'label', 'uid', 'uversion',
-                                            'setlabel', 'reqlabel', 'reqlabelflag'])
+    return pd.DataFrame(file_list, columns=['filepath', 'label',
+                                            'uid', 'uversion',
+                                            'setlabel', 'reqlabel',
+                                            'reqlabelflag'])
 
 
 def load_config(filename, path='.'):

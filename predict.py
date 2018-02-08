@@ -92,8 +92,8 @@ def main(_):
             predictions.extend([cfg.NUM2LABEL[k] for k in y_pred_class_result])
 
         # Export results to a .csv file in modelpath directory
-        now = datetime.now()
-        outfile = os.path.join(modelpath, "output_{}.csv".format(now.strftime("%Y%m%d-%H%M%S")))
+        now = datetime.now().strftime("%Y%m%d-%H%M%S")
+        outfile = os.path.join(modelpath, "output_{}.csv".format(now))
         export_csv(filenames_list, predictions, outfile)
 
 

@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Signal preprocessing functions for tensorflow speech recognition.
-Note that the rank of the tensor is included to allow for both cases of single files
-and batches of files.
+Note that the rank of the tensor is included to allow for both cases of single
+files and batches of files.
 Note that these functions must all be run in a tf session.
 """
 
@@ -92,14 +92,18 @@ def signalProcessBatch(signals, noise_factor=0.1, noise_frac=0.2, window=512,
 
     # Calculate the Mel spectrogram and set its shape
     mel_spectrograms = tf.tensordot(magnitude_spectrograms, mel_weight_mat, 1)
-    mel_spectrograms.set_shape(magnitude_spectrograms.shape[:-1].concatenate(mel_weight_mat.shape[-1:]))
+    spec_shape = magnitude_spectrograms \
+        .shape[:-1] \
+        .concatenate(mel_weight_mat.shape[-1:])
+    mel_spectrograms.set_shape(spec_shape)
 
     # Calculate log of the spectrogram
     log_offset = 1e-8
     log_mel_spectrograms = tf.log(mel_spectrograms + log_offset, name='log_mel_spectrograms')
 
     # Calcuate the MFCCs
-    mfccs = signal.mfccs_from_log_mel_spectrograms(log_mel_spectrograms)[..., :num_mfccs]
+    mfccs = signal.mfccs_from_log_mel_spectrograms(log_mel_spectrograms)
+    mfccs = mfccs[..., :num_mfccs]
     mfccs = tf.identity(mfccs, name='mfccs')
 
     return mfccs, log_mel_spectrograms, zcr, rmse

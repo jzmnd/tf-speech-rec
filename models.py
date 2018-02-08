@@ -16,18 +16,23 @@ def weight_variable(shape, name):
 
 
 def bias_variable(shape, name):
-    """Creates a variable of size shape with a constant small positive number"""
+    """Creates a variable of size shape with a constant small number (0.01)"""
     initial = tf.constant(0.01, shape=shape)
     return tf.Variable(initial, name=name)
 
 
-# Conv2d, max pooling, and dropout wrapper functions for simplicity (No padding)
+# Conv2d, max pooling, and dropout wrapper functions for simplicity
 def conv2d(x, W, sx=1, sy=1, padding='VALID'):
-    return tf.nn.conv2d(x, W, strides=[1, sx, sy, 1], padding=padding)
+    return tf.nn.conv2d(x, W,
+                        strides=[1, sx, sy, 1],
+                        padding=padding)
 
 
 def max_pool_2d(x, kx=2, ky=2, padding='VALID'):
-    return tf.nn.max_pool(x, ksize=[1, kx, ky, 1], strides=[1, kx, ky, 1], padding=padding)
+    return tf.nn.max_pool(x,
+                          ksize=[1, kx, ky, 1],
+                          strides=[1, kx, ky, 1],
+                          padding=padding)
 
 
 def dropout(x, d, is_training):
@@ -57,7 +62,8 @@ def buildModel(modelname):
 
 
 # Models
-def convSpeechModelA(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None, is_training=False):
+def convSpeechModelA(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
+                     dropout_prob=None, is_training=False):
     """Low latency conv model using only the Mel Spectrogram"""
 
     # ======================================================
@@ -141,7 +147,8 @@ def convSpeechModelA(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None
     return x_mel_output
 
 
-def convSpeechModelB(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None, is_training=False):
+def convSpeechModelB(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
+                     dropout_prob=None, is_training=False):
     """Low latency conv model using only the MFCCs"""
 
     # ======================================================
@@ -225,14 +232,16 @@ def convSpeechModelB(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None
     return x_mfcc_output
 
 
-def convSpeechModelC(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None, is_training=False):
-    """Low latency conv model using the MFCC combined with the ZCR and RMSE in a single audio fingerprint"""
+def convSpeechModelC(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
+                     dropout_prob=None, is_training=False):
+    """Low latency conv model using the MFCC combined with the ZCR and RMSE in
+       a single audio fingerprint"""
 
     # ======================================================
     # Setup the parameters for the model
     # ======================================================
 
-    # MFCC with ZCR and RMSE input size (20 MFCCs, 2 features, 2 delta features)
+    # MFCC with ZCR and RMSE input size (20 MFCCs, 2 features, 2 deltas)
     t_size = 122
     f_size = 24
 
@@ -326,8 +335,10 @@ def convSpeechModelC(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None
     return x_fingerprint_output
 
 
-def convSpeechModelD(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None, is_training=False):
-    """Low latency conv model using only the MFCCs but smaller stride than Model B"""
+def convSpeechModelD(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
+                     dropout_prob=None, is_training=False):
+    """Low latency conv model using only the MFCCs but smaller stride than
+       Model B"""
 
     # ======================================================
     # Setup the parameters for the model
@@ -410,14 +421,16 @@ def convSpeechModelD(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None
     return x_mfcc_output
 
 
-def convSpeechModelE(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None, is_training=False):
-    """Extended conv model using the MFCC combined with the ZCR and RMSE in a single audio fingerprint"""
+def convSpeechModelE(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
+                     dropout_prob=None, is_training=False):
+    """Extended conv model using the MFCC combined with the ZCR and RMSE in a
+       single audio fingerprint"""
 
     # ======================================================
     # Setup the parameters for the model
     # ======================================================
 
-    # MFCC with ZCR and RMSE input size (20 MFCCs, 2 features, 2 delta features)
+    # MFCC with ZCR and RMSE input size (20 MFCCs, 2 features, 2 deltas)
     t_size = 122
     f_size = 24
 
@@ -506,7 +519,6 @@ def convSpeechModelE(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in, dropout_prob=None
                                         sx=filter_stride_t_2,
                                         sy=filter_stride_f_2,
                                         padding='SAME') + biases['bconv2'])
-
 
     # Dropout 2:
     x_fingerprint_dropout_2 = dropout(x_fingerprint_2, dropout_prob, is_training)
