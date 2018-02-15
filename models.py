@@ -57,6 +57,8 @@ def buildModel(modelname):
         return convSpeechModelD
     elif modelname == 'convSpeechModelE':
         return convSpeechModelE
+    elif modelname == 'convSpeechModelF':
+        return convSpeechModelF
     else:
         return convSpeechModelA
 
@@ -534,5 +536,167 @@ def convSpeechModelE(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
 
     # Layer 4: third FC layer
     x_fingerprint_output = tf.matmul(x_fingerprint_dropout_3, weights['wfc2']) + biases['bfc2']
+
+    return x_fingerprint_output
+
+
+def convSpeechModelF(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
+                     dropout_prob=None, is_training=False):
+    """Model based on Thomas O'Malley's conv model"""
+
+    # ======================================================
+    # Setup the parameters for the model
+    # ======================================================
+
+    # Mel spectrogram input with 120 mel filter banks
+    t_size = 122
+    f_size = 116
+
+    # Parameters for Conv layer 1 filter
+    # ("Denoising" and basic feature extraction)
+    filter_size_t_1 = 7
+    filter_size_f_1 = 3
+    filter_count_1 = 64
+    filter_stride_t_1 = 1
+    filter_stride_f_1 = 1
+
+    # Parameters for Conv layer 2 filter
+    # (Look for local patterns across frequency bands)
+    filter_size_t_2 = 1
+    filter_size_f_2 = 7
+    filter_count_2 = 128
+    filter_stride_t_2 = 1
+    filter_stride_f_2 = 1
+
+    # Parameters for Conv layer 3 filter
+    # (Detecting phoneme-level features)
+    filter_size_t_3 = 1
+    filter_size_f_3 = 10
+    filter_count_3 = 256
+    filter_stride_t_3 = 1
+    filter_stride_f_3 = 1
+
+    # Parameters for Conv layer 4 filter
+    # (Looking for connected components of a short keyword at different points in time)
+    filter_size_t_4 = 7
+    filter_size_f_4 = 1
+    filter_count_4 = 512
+    filter_stride_t_4 = 1
+    filter_stride_f_4 = 1
+
+    # Paramaters for FC layers
+    fc_output_channels_1 = 256
+    fc_output_channels_2 = cfg.N_CLASSES
+
+    # Number of elements in the first FC layer
+    fc_element_count = t_size * filter_count_4
+
+    # ======================================================
+    # Setup dictionaries containing weights and biases
+    # ======================================================
+
+    weights = {
+        'wconv1': weight_variable([filter_size_t_1, filter_size_f_1, 1, filter_count_1], 'wconv1'),
+        'wconv2': weight_variable([filter_size_t_2, filter_size_f_2, filter_count_1, filter_count_2], 'wconv2'),
+        'wconv3': weight_variable([filter_size_t_3, filter_size_f_3, filter_count_2, filter_count_3], 'wconv3'),
+        'wconv4': weight_variable([filter_size_t_4, filter_size_f_4, filter_count_3, filter_count_4], 'wconv4'),
+        'wfc1': weight_variable([fc_element_count, fc_output_channels_1], 'wfc1'),
+        'wfc2': weight_variable([fc_output_channels_1, fc_output_channels_2], 'wfc2'),
+    }
+    biases = {
+        'bconv1': bias_variable([filter_count_1], 'bconv1'),
+        'bconv2': bias_variable([filter_count_2], 'bconv2'),
+        'bconv3': bias_variable([filter_count_3], 'bconv3'),
+        'bconv4': bias_variable([filter_count_4], 'bconv4'),
+        'bfc1': bias_variable([fc_output_channels_1], 'bfc1'),
+        'bfc2': bias_variable([fc_output_channels_2], 'bfc2'),
+    }
+
+    # ======================================================
+    # Model definition and calculations
+    # ======================================================
+
+    # Calculate deltaZCR and deltaRMSE (pad 0 at end)
+    paddings = tf.constant([[0, 0], [0, 1]])
+    x_zcr_delta = tf.pad(tf_diff_axis(x_zcr_in), paddings, 'CONSTANT')
+    x_rmse_delta = tf.pad(tf_diff_axis(x_rmse_in), paddings, 'CONSTANT')
+
+    # Reshape to [audio file number, time size, 1]
+    x_zcr_in_rs = tf.reshape(x_zcr_in, [-1, t_size, 1])
+    x_zcr_delta_rs = tf.reshape(x_zcr_delta, [-1, t_size, 1])
+    x_rmse_in_rs = tf.reshape(x_rmse_in, [-1, t_size, 1])
+    x_rmse_delta_rs = tf.reshape(x_rmse_delta, [-1, t_size, 1])
+
+    # Stack together ZCR and RMSE features using tf.concat
+    zr_stack = tf.concat([x_zcr_in_rs, x_zcr_delta_rs, x_rmse_in_rs, x_rmse_delta_rs], 2)
+
+    # Stack with the mel spectrogram using tf.concat to make fingerprint
+    x_fingerprint = tf.concat([zr_stack, x_mel_in], 2)
+
+    # Normalize (L2) along the time axis
+    x_fingerprint_norm = tf.nn.l2_normalize(x_fingerprint, 1, epsilon=1e-8)
+
+    # Reshape input to [audio file number, time size, freq size + stacked features, channel]
+    x_fingerprint_rs = tf.reshape(x_fingerprint_norm, [-1, t_size, f_size + 4, 1])
+
+    # Layer 1: first Conv layer, BiasAdd and ReLU
+    x_fingerprint_1 = tf.nn.relu(conv2d(x_fingerprint_rs, weights['wconv1'],
+                                        sx=filter_stride_t_1,
+                                        sy=filter_stride_f_1,
+                                        padding='SAME') + biases['bconv1'])
+
+    # Dropout 1:
+    x_fingerprint_dropout_1 = dropout(x_fingerprint_1, dropout_prob, is_training)
+
+    # Max pool 1:
+    x_fingerprint_mp_1 = max_pool_2d(x_fingerprint_dropout_1,
+                                     kx=1,
+                                     ky=3,
+                                     padding='SAME')
+
+    # Layer 2: second Conv layer, BiasAdd and ReLU
+    x_fingerprint_2 = tf.nn.relu(conv2d(x_fingerprint_mp_1, weights['wconv2'],
+                                        sx=filter_stride_t_2,
+                                        sy=filter_stride_f_2,
+                                        padding='SAME') + biases['bconv2'])
+
+    # Dropout 2:
+    x_fingerprint_dropout_2 = dropout(x_fingerprint_2, dropout_prob, is_training)
+
+    # Max pool 2:
+    x_fingerprint_mp_2 = max_pool_2d(x_fingerprint_dropout_2,
+                                     kx=1,
+                                     ky=4,
+                                     padding='SAME')
+
+    # Layer 3: third Conv layer, BiasAdd and ReLU
+    x_fingerprint_3 = tf.nn.relu(conv2d(x_fingerprint_mp_2, weights['wconv3'],
+                                        sx=filter_stride_t_3,
+                                        sy=filter_stride_f_3,
+                                        padding='VALID') + biases['bconv3'])
+
+    # Dropout 3:
+    x_fingerprint_dropout_3 = dropout(x_fingerprint_3, dropout_prob, is_training)
+
+    # Layer 4: fourth Conv layer, BiasAdd and ReLU
+    x_fingerprint_4 = tf.nn.relu(conv2d(x_fingerprint_dropout_3, weights['wconv4'],
+                                        sx=filter_stride_t_4,
+                                        sy=filter_stride_f_4,
+                                        padding='SAME') + biases['bconv4'])
+
+    # Dropout 4:
+    x_fingerprint_dropout_4 = dropout(x_fingerprint_4, dropout_prob, is_training)
+
+    # Flatten layers
+    x_fingerprint_4_rs = tf.reshape(x_fingerprint_dropout_4, [-1, fc_element_count])
+
+    # Layer 5: first FC layer
+    x_fingerprint_5 = tf.matmul(x_fingerprint_4_rs, weights['wfc1']) + biases['bfc1']
+
+    # Dropout 5:
+    x_fingerprint_dropout_5 = dropout(x_fingerprint_5, dropout_prob, is_training)
+
+    # Layer 6: final FC layer
+    x_fingerprint_output = tf.matmul(x_fingerprint_dropout_5, weights['wfc2']) + biases['bfc2']
 
     return x_fingerprint_output
