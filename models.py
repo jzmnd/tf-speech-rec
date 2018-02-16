@@ -16,8 +16,8 @@ def weight_variable(shape, name):
 
 
 def bias_variable(shape, name):
-    """Creates a variable of size shape with a constant small number (0.01)"""
-    initial = tf.constant(0.01, shape=shape)
+    """Creates a variable of size shape with a constant small number (0.001)"""
+    initial = tf.constant(0.001, shape=shape)
     return tf.Variable(initial, name=name)
 
 
@@ -548,9 +548,9 @@ def convSpeechModelF(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
     # Setup the parameters for the model
     # ======================================================
 
-    # Mel spectrogram input with 120 mel filter banks
+    # Mel spectrogram input with 116 mel filter banks + 4 other features
     t_size = 122
-    f_size = 116
+    f_size = 120
 
     # Parameters for Conv layer 1 filter
     # ("Denoising" and basic feature extraction)
@@ -589,7 +589,7 @@ def convSpeechModelF(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
     fc_output_channels_2 = cfg.N_CLASSES
 
     # Number of elements in the first FC layer
-    fc_element_count = t_size * filter_count_4
+    fc_element_count = filter_count_4
 
     # ======================================================
     # Setup dictionaries containing weights and biases
@@ -636,8 +636,8 @@ def convSpeechModelF(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
     # Normalize (L2) along the time axis
     x_fingerprint_norm = tf.nn.l2_normalize(x_fingerprint, 1, epsilon=1e-8)
 
-    # Reshape input to [audio file number, time size, freq size + stacked features, channel]
-    x_fingerprint_rs = tf.reshape(x_fingerprint_norm, [-1, t_size, f_size + 4, 1])
+    # Reshape input to [audio file number, time size, freq size, channel]
+    x_fingerprint_rs = tf.reshape(x_fingerprint_norm, [-1, t_size, f_size, 1])
 
     # Layer 1: first Conv layer, BiasAdd and ReLU
     x_fingerprint_1 = tf.nn.relu(conv2d(x_fingerprint_rs, weights['wconv1'],
@@ -645,11 +645,8 @@ def convSpeechModelF(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
                                         sy=filter_stride_f_1,
                                         padding='SAME') + biases['bconv1'])
 
-    # Dropout 1:
-    x_fingerprint_dropout_1 = dropout(x_fingerprint_1, dropout_prob, is_training)
-
     # Max pool 1:
-    x_fingerprint_mp_1 = max_pool_2d(x_fingerprint_dropout_1,
+    x_fingerprint_mp_1 = max_pool_2d(x_fingerprint_1,
                                      kx=1,
                                      ky=3,
                                      padding='SAME')
@@ -660,11 +657,8 @@ def convSpeechModelF(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
                                         sy=filter_stride_f_2,
                                         padding='SAME') + biases['bconv2'])
 
-    # Dropout 2:
-    x_fingerprint_dropout_2 = dropout(x_fingerprint_2, dropout_prob, is_training)
-
     # Max pool 2:
-    x_fingerprint_mp_2 = max_pool_2d(x_fingerprint_dropout_2,
+    x_fingerprint_mp_2 = max_pool_2d(x_fingerprint_2,
                                      kx=1,
                                      ky=4,
                                      padding='SAME')
@@ -675,25 +669,22 @@ def convSpeechModelF(x_mel_in, x_mfcc_in, x_zcr_in, x_rmse_in,
                                         sy=filter_stride_f_3,
                                         padding='VALID') + biases['bconv3'])
 
-    # Dropout 3:
-    x_fingerprint_dropout_3 = dropout(x_fingerprint_3, dropout_prob, is_training)
-
     # Layer 4: fourth Conv layer, BiasAdd and ReLU
-    x_fingerprint_4 = tf.nn.relu(conv2d(x_fingerprint_dropout_3, weights['wconv4'],
+    x_fingerprint_4 = tf.nn.relu(conv2d(x_fingerprint_3, weights['wconv4'],
                                         sx=filter_stride_t_4,
                                         sy=filter_stride_f_4,
                                         padding='SAME') + biases['bconv4'])
 
-    # Dropout 4:
+    # Dropout 1:
     x_fingerprint_dropout_4 = dropout(x_fingerprint_4, dropout_prob, is_training)
 
-    # Flatten layers
-    x_fingerprint_4_rs = tf.reshape(x_fingerprint_dropout_4, [-1, fc_element_count])
+    # Global max pool layer
+    x_fingerprint_4_rs = tf.reduce_max(x_fingerprint_dropout_4, [1, 2])
 
     # Layer 5: first FC layer
     x_fingerprint_5 = tf.matmul(x_fingerprint_4_rs, weights['wfc1']) + biases['bfc1']
 
-    # Dropout 5:
+    # Dropout 2:
     x_fingerprint_dropout_5 = dropout(x_fingerprint_5, dropout_prob, is_training)
 
     # Layer 6: final FC layer
